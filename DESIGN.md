@@ -118,3 +118,36 @@ data/
 **결론**: 데이터 모델 및 모듈 구조 확정. Phase 2에서 CMake 스켈레톤에 그대로 반영한다.
 
 ---
+
+## Phase 2 — 프로젝트 스켈레톤 구성
+
+### 설계
+
+- **빌드 시스템**: CMake (`CMakeLists.txt`) + Ninja 제너레이터, MSVC(`cl.exe`) 컴파일러
+  - `CMAKE_CXX_STANDARD 17`
+  - MSVC 대상일 때 `/utf-8`(Phase 0에서 확인한 한글 소스 인코딩 문제 대응), `/W4`(경고 강화) 적용
+- **디렉터리 구조**: Phase 1에서 설계한 구조를 그대로 생성
+  - `include/storage/JsonFileStore.hpp`: `Sample`/`Order` 어느 쪽에도 종속되지 않는 범용 JSON 파일
+    저장소 템플릿. `load()`는 파일 부재/파싱 실패 시 빈 벡터로 대체(NFR-1, NFR-3), `save()`는 상위
+    디렉터리가 없으면 `std::filesystem::create_directories`로 생성
+  - `src/main.cpp`: Composition Root. `JsonFileStore<Sample>`/`JsonFileStore<Order>`를 `data/samples.json`,
+    `data/orders.json` 경로로 생성하고, 최상위 메뉴(시료 관리/주문 관리/종료)만 뼈대로 구성
+- **완료 기준**: `cmake --build`로 빌드 성공, 실행 시 메뉴가 출력되고 1/2/0 입력에 따라 분기함
+  (CRUD 로직 자체는 Phase 3/4에서 구현)
+
+### 피드백
+
+- CMake+Ninja+MSVC 조합으로 빌드가 한 번에 성공함을 확인 (`cmake -S . -B build -G Ninja` →
+  `cmake --build build`).
+- 실행 파일에 `1`, `2`, `0`을 순서대로 입력했을 때 각각 "시료 관리(Phase 3 예정)", "주문 관리(Phase 4
+  예정)", 정상 종료로 분기하는 것을 Bash 파이프 입력(`printf '1\n2\n0\n' | ...`)으로 확인함.
+  - PowerShell에서 개행 문자열(`` `n ``)을 파이프로 넘겼을 때는 객체 스트림 처리 방식 차이로 입력이
+    한 줄씩 밀리는 현상이 있었으나, 이는 테스트 방법(파이프 입력 방식)의 차이일 뿐 애플리케이션
+    로직의 결함이 아님을 Bash 파이프 재현으로 교차 확인함. 이후 수동 검증은 Bash의 `printf | exe`
+    방식을 기준으로 한다.
+- 빌드 산출물(`build/`, `.vs/`, `*.obj`, `*.exe` 등)은 `.gitignore`에 이미 반영되어 있어 커밋 대상에서
+  제외됨을 확인.
+
+**결론**: 빌드 가능한 스켈레톤 확보. Phase 3부터 시료 CRUD를 이 뼈대 위에 구현한다.
+
+---
