@@ -56,7 +56,7 @@ void OrderMenu::handleCreate() {
     // order.status는 Order 구조체 기본값(RESERVED)을 그대로 사용한다.
 
     const auto result = repository_.create(order);
-    std::cout << result.message << "\n";
+    printResult(result);
 }
 
 void OrderMenu::handleListAll() {
@@ -94,13 +94,13 @@ void OrderMenu::handleUpdate() {
     patch.status = readOptionalLine("상태 [" + existing->status + "] > ");
 
     const auto result = repository_.update(orderId, patch);
-    std::cout << result.message << "\n";
+    printResult(result);
 }
 
 void OrderMenu::handleDelete() {
     const std::string orderId = readLine("삭제할 주문번호 > ");
     const auto result = repository_.remove(orderId);
-    std::cout << result.message << "\n";
+    printResult(result);
 }
 
 }  // namespace dp::console

@@ -60,7 +60,7 @@ void SampleMenu::handleCreate() {
     sample.stock = *stock;
 
     const auto result = repository_.create(sample);
-    std::cout << result.message << "\n";
+    printResult(result);
 }
 
 void SampleMenu::handleListAll() {
@@ -100,13 +100,13 @@ void SampleMenu::handleUpdate() {
     patch.stock = readOptionalInt("재고 [" + std::to_string(existing->stock) + "] > ");
 
     const auto result = repository_.update(id, patch);
-    std::cout << result.message << "\n";
+    printResult(result);
 }
 
 void SampleMenu::handleDelete() {
     const std::string id = readLine("삭제할 시료 ID > ");
     const auto result = repository_.remove(id);
-    std::cout << result.message << "\n";
+    printResult(result);
 }
 
 }  // namespace dp::console

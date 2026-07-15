@@ -4,7 +4,15 @@
 #include <optional>
 #include <string>
 
+#include "repository/RepositoryResult.hpp"
+
 namespace dp::console {
+
+// Create/Update/Delete 결과 메시지를 출력하는 공통 헬퍼.
+// (Sample/Order 각 메뉴에서 3회 이상 반복되어 Rule of Three에 따라 추출함. DESIGN.md Phase 5 참고)
+inline void printResult(const RepositoryResult& result) {
+    std::cout << result.message << "\n";
+}
 
 // 한 줄 문자열 입력. 스트림이 끊기면(EOF) 빈 문자열을 반환한다.
 inline std::string readLine(const std::string& prompt) {
