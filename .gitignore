@@ -14,3 +14,4 @@ CMakeCache.txt
 # Runtime data files (JSON persistence output, not source)
 poc/json_poc/poc_samples.json
 data/*.json
+/test_data/

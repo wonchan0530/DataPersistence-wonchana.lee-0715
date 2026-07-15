@@ -22,3 +22,25 @@ if (MSVC)
     # 기본 코드페이지로 잘못 해석되어 컴파일 오류가 발생한다.
     target_compile_options(DataPersistenceApp PRIVATE /utf-8 /W4)
 endif()
+
+enable_testing()
+
+add_executable(DataPersistenceTests
+    tests/test_main.cpp
+    src/repository/SampleRepository.cpp
+    src/repository/OrderRepository.cpp
+)
+
+target_include_directories(DataPersistenceTests PRIVATE
+    include
+    third_party
+)
+
+if (MSVC)
+    target_compile_options(DataPersistenceTests PRIVATE /utf-8 /W4)
+endif()
+
+add_test(NAME DataPersistenceTests
+    COMMAND DataPersistenceTests
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
