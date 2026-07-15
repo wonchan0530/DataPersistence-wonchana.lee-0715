@@ -1,0 +1,16 @@
+# Build output
+/build/
+/out/
+/.vs/
+CMakeFiles/
+CMakeCache.txt
+*.obj
+*.exe
+*.exp
+*.lib
+*.pdb
+*.ilk
+
+# Runtime data files (JSON persistence output, not source)
+poc/json_poc/poc_samples.json
+data/*.json
