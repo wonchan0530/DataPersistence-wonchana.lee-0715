@@ -204,3 +204,50 @@ data/
 **결론**: 시료 CRUD 전체 요구사항(FR-5~FR-9) 충족 확인. 동일 패턴으로 Phase 4(주문 CRUD)를 진행한다.
 
 ---
+
+## Phase 4 — 주문(Order) CRUD 구현
+
+### 설계
+
+Phase 3의 `SampleRepository` 패턴을 그대로 재사용하되, 주문은 시료를 참조하므로 **참조 무결성 검증**이
+추가된다 (PRD FR-10).
+
+**`include/repository/OrderRepository.hpp`/`.cpp`**
+
+- 생성자에서 `const SampleRepository&`를 함께 받아, 주문 생성 시 `sampleId`가 실제 존재하는 시료인지
+  확인한다. (Repository 간 의존 방향: `OrderRepository → SampleRepository`, 역방향 의존 없음)
+- `OrderUpdate` patch 구조체: `customerName`, `quantity`, `status`를 `std::optional`로 구성 — Phase 3의
+  `SampleUpdate`와 동일한 패턴 재사용 (FR-13)
+- API는 `SampleRepository`와 대칭 구성: `findAll`, `findById`, `search`(주문번호/고객명/시료ID 부분일치,
+  FR-12), `create`, `update`, `remove`
+- 검증 규칙: `orderId` 비어있지 않고 유일, `sampleId`는 `SampleRepository`에 존재해야 함, `customerName`
+  비어있지 않음, `quantity` 0보다 큼. `status`는 생성 시 `Order` 구조체 기본값(`RESERVED`)을 그대로 사용
+
+**`include/console/OrderMenu.hpp`/`.cpp`** — `SampleMenu`와 동일한 구조로 등록/조회/검색/수정/삭제 메뉴
+루프. 등록 시 시료 ID를 입력받고, 존재하지 않으면 Repository가 반환하는 실패 메시지를 그대로 출력한다.
+
+`src/main.cpp`의 `"2"` 분기에 `OrderMenu(orderRepository).run()`을 연결한다.
+
+### 완료 기준
+
+- 존재하지 않는 시료 ID로 주문 생성 시 실패 처리 확인 (FR-10)
+- 주문 등록 → 전체 조회 → 검색 → 수정 → 삭제 시나리오 정상 동작
+- 시료 데이터와 독립적으로 `data/orders.json`에 영속화되고 재시작 후에도 유지되는지 확인
+
+### 피드백
+
+- Bash 파이프로 다음 시나리오를 실행하여 확인함.
+  - 존재하지 않는 시료 ID(S-999)로 주문 생성 시도 → 참조 무결성 검증에 의해 거부되고 `orders.json`에
+    아무 것도 기록되지 않음.
+  - 등록된 시료(S-001)로 주문 생성(ORD-001) → 전체 조회 → 검색("삼성") → 상태를 RESERVED에서
+    CONFIRMED로 수정(고객명/수량은 미입력으로 유지) → 존재하지 않는 주문번호(ORD-999) 삭제 시도 시
+    실패 메시지까지 전부 기대한 대로 동작.
+  - 재시작 후 `orders.json`에서 상태가 CONFIRMED로 반영된 채 그대로 유지됨을 확인 — 시료/주문 데이터가
+    서로 다른 파일에 독립적으로 영속화되고 있음을 재확인.
+- `OrderRepository`가 `SampleRepository`를 생성자 참조로 주입받는 단방향 의존 구조가 실제로 잘 동작함을
+  확인 — `SampleOrderSystem`에서도 이 의존 방향(주문이 시료를 참조, 역방향 없음)을 그대로 가져갈 수 있음.
+
+**결론**: 주문 CRUD 및 참조 무결성(FR-10~FR-14) 요구사항 충족 확인. Phase 5(메인 메뉴 통합/UI 정리)로
+진행한다.
+
+---

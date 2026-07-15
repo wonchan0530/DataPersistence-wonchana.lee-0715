@@ -1,11 +1,12 @@
 #include <iostream>
 #include <string>
 
+#include "console/OrderMenu.hpp"
 #include "console/SampleMenu.hpp"
 #include "model/Order.hpp"
 #include "model/Sample.hpp"
+#include "repository/OrderRepository.hpp"
 #include "repository/SampleRepository.hpp"
-#include "storage/JsonFileStore.hpp"
 
 namespace {
 constexpr const char* kSampleDataFile = "data/samples.json";
@@ -14,10 +15,10 @@ constexpr const char* kOrderDataFile = "data/orders.json";
 
 int main() {
     dp::SampleRepository sampleRepository(kSampleDataFile);
-    dp::JsonFileStore<dp::Order> orderStore(kOrderDataFile);
+    dp::OrderRepository orderRepository(kOrderDataFile, sampleRepository);
 
     const auto samples = sampleRepository.findAll();
-    const auto orders = orderStore.load();
+    const auto orders = orderRepository.findAll();
 
     std::cout << "==============================================\n";
     std::cout << " 반도체 시료 데이터 영속성 CRUD 콘솔 (PoC 기반)\n";
@@ -37,7 +38,7 @@ int main() {
         if (input == "1") {
             dp::console::SampleMenu(sampleRepository).run();
         } else if (input == "2") {
-            std::cout << "(주문 관리 메뉴는 Phase 4에서 구현 예정)\n\n";
+            dp::console::OrderMenu(orderRepository).run();
         } else if (input == "0") {
             running = false;
         } else {

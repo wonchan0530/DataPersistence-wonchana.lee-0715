@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(DataPersistenceApp
     src/main.cpp
     src/repository/SampleRepository.cpp
+    src/repository/OrderRepository.cpp
     src/console/SampleMenu.cpp
+    src/console/OrderMenu.cpp
 )
 
 target_include_directories(DataPersistenceApp PRIVATE
