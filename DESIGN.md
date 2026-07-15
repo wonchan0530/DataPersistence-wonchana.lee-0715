@@ -46,3 +46,75 @@ Phase별 구현 전 설계를 기록하는 문서. `PLAN.md`의 Phase 순서를 
 `/utf-8` 컴파일 옵션 필요성을 본 프로젝트의 `JsonFileStore` 설계 및 `CMakeLists.txt`에 반영한다.
 
 ---
+
+## Phase 1 — 요구사항 확정 및 데이터 모델 설계
+
+### 설계
+
+`PRD.md` 4장(데이터 모델 요구사항)을 C++ 구조체로 확정한다.
+
+**`Sample` (시료)** — `include/model/Sample.hpp`
+
+| 필드 | 타입 | 검증 규칙 |
+|---|---|---|
+| id | `std::string` | 비어있지 않음, 저장소 내 유일 |
+| name | `std::string` | 비어있지 않음 |
+| avgProductionTimeMin | `double` | 0보다 큼 |
+| yieldRate | `double` | 0 초과 1 이하 |
+| stock | `int` | 0 이상 |
+
+**`Order` (주문)** — `include/model/Order.hpp`
+
+| 필드 | 타입 | 검증 규칙 |
+|---|---|---|
+| orderId | `std::string` | 비어있지 않음, 저장소 내 유일 |
+| sampleId | `std::string` | 등록된 `Sample.id`를 참조해야 함 |
+| customerName | `std::string` | 비어있지 않음 |
+| quantity | `int` | 0보다 큼 |
+| status | `std::string` | 생성 시 `"RESERVED"`로 고정 초기화 |
+
+두 구조체 모두 Phase 0에서 검증한 `to_json`/`from_json` ADL 패턴을 그대로 사용한다.
+
+**모듈 구조** (재사용성을 고려해 계층 분리, `SampleOrderSystem`의 MVC Model 계층으로 이식 가능하도록 설계)
+
+```
+include/
+  model/        Sample.hpp, Order.hpp            (순수 데이터 구조 + JSON 변환)
+  storage/       JsonFileStore.hpp                (범용 JSON 파일 로드/저장 템플릿)
+  repository/    SampleRepository.hpp/.cpp        (시료 CRUD + 유효성 검증)
+                 OrderRepository.hpp/.cpp         (주문 CRUD + 시료 참조 무결성 검증)
+  console/       ConsoleIO.hpp                    (입력 파싱 공통 유틸)
+                 SampleMenu.hpp/.cpp              (시료 관리 메뉴)
+                 OrderMenu.hpp/.cpp               (주문 관리 메뉴)
+src/
+  main.cpp       최상위 메뉴 및 의존성 조립(Composition Root)
+data/
+  samples.json, orders.json                      (런타임 데이터 파일, 최초 실행 시 자동 생성)
+```
+
+- `JsonFileStore<T>`는 파일 경로만 주입받아 `std::vector<T>` 단위로 load/save를 수행하는 순수 저장소 계층이다.
+  파일이 없으면 빈 벡터, 파싱 실패 시 예외를 잡아 빈 벡터로 대체하고 경고를 반환한다 (Phase 0 검증 내용 반영).
+- `SampleRepository`/`OrderRepository`는 `JsonFileStore<T>`를 감싸서 "중복 ID 금지", "존재하지 않는 ID
+  조회/수정/삭제 시 실패 반환", "부분 필드 수정" 등 도메인 규칙을 구현한다. Repository는 File I/O 세부사항을
+  몰라도 되고, Storage는 도메인 규칙을 몰라도 되도록 책임을 분리한다(SRP).
+- `Console` 계층은 Repository의 반환값(성공/실패, 데이터)을 받아 사용자에게 안내 문구를 출력하는 역할만
+  담당한다.
+
+### 완료 기준
+
+- 위 구조체/모듈 경계가 PRD 5장의 기능 요구사항(FR-5~FR-14)을 모두 표현할 수 있는지 확인
+- Phase 2에서 이 구조 그대로 컴파일 가능한 스켈레톤을 만들 수 있는 수준까지 구체화
+
+### 피드백
+
+- `include/model/Sample.hpp`, `include/model/Order.hpp`를 설계대로 구현한 뒤, 임시 스모크 테스트로
+  두 구조체가 한글 필드 값을 포함해 정상적으로 JSON 직렬화되는지 컴파일·실행하여 확인함 (검증 후 임시
+  파일은 삭제, 결과만 본 문서에 기록).
+- `Order.status`의 기본값을 구조체 멤버 초기화(`= "RESERVED"`)로 지정해, Repository 계층에서 별도로
+  기본값을 채우지 않아도 되도록 설계를 단순화함.
+- FR-5~FR-14 전 항목이 `Sample`/`Order` 필드와 Repository 계층의 책임(유일성 검증, 참조 무결성 검증,
+  부분 수정)으로 표현 가능함을 확인 — Phase 2 스켈레톤으로 진행.
+
+**결론**: 데이터 모델 및 모듈 구조 확정. Phase 2에서 CMake 스켈레톤에 그대로 반영한다.
+
+---
