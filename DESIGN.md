@@ -151,3 +151,56 @@ data/
 **결론**: 빌드 가능한 스켈레톤 확보. Phase 3부터 시료 CRUD를 이 뼈대 위에 구현한다.
 
 ---
+
+## Phase 3 — 시료(Sample) CRUD 구현
+
+### 설계
+
+**`include/repository/SampleRepository.hpp`/`.cpp`**
+
+- `JsonFileStore<Sample>`을 감싸서 도메인 규칙을 적용하는 계층. 매 호출마다 파일을 다시 읽고(load) 쓰는
+  단순한 방식으로 구현해 상태 불일치 위험을 없앤다 (PoC 성격의 콘솔 앱에서는 성능보다 단순성 우선).
+- 반환 타입: 성공/실패와 사용자 메시지를 함께 담는 `RepositoryResult { bool success; std::string message; }`
+  — Console 계층은 이 메시지를 그대로 출력하기만 하면 되도록 해서 View와 도메인 규칙을 분리한다 (FR-4).
+- API
+  - `std::vector<Sample> findAll() const`
+  - `std::optional<Sample> findById(const std::string& id) const`
+  - `std::vector<Sample> search(const std::string& keyword) const` — id 또는 name에 keyword가 포함되면 매치
+  - `RepositoryResult create(const Sample& sample)` — id 중복 시 실패, 필드 유효성(비어있지 않음, 수치
+    범위) 검증 실패 시 실패
+  - `RepositoryResult update(const std::string& id, const SampleUpdate& patch)` — 존재하지 않으면 실패.
+    `SampleUpdate`는 `std::optional<T>` 필드로 구성해 "지정된 필드만 수정"을 표현한다 (FR-8)
+  - `RepositoryResult remove(const std::string& id)` — 존재하지 않으면 실패
+
+**`include/console/ConsoleIO.hpp`** — 입력 파싱 공통 유틸 (`readLine`, `readInt`, `readDouble`,
+`readOptionalX`(빈 입력이면 수정하지 않음을 의미)). 실패 시 `std::nullopt`를 반환해 호출부에서 안내 후
+재시도/취소를 결정하게 한다.
+
+**`include/console/SampleMenu.hpp`/`.cpp`** — `SampleRepository&`를 받아 등록/조회(전체)/검색/수정/삭제
+메뉴 루프를 담당. Repository의 `RepositoryResult.message`/조회 결과를 그대로 출력한다.
+
+`src/main.cpp`에서 `"1"` 입력 시 `SampleMenu(sampleRepository).run()`을 호출하도록 연결한다.
+
+### 완료 기준
+
+- 콘솔에서 시료 등록 → 전체 조회 → 검색 → 수정 → 삭제 시나리오가 모두 정상 동작
+- 중복 ID 등록 거부, 존재하지 않는 ID 조회/수정/삭제 시 실패 메시지 출력 확인
+- 애플리케이션을 재시작해도 등록한 시료가 유지되는지 확인 (핵심 영속성 요구사항)
+
+### 피드백
+
+- Bash 파이프(`printf '...' | exe`)로 다음 시나리오를 실제 실행하여 확인함.
+  - 시료 등록(S-001) → 전체 조회 → 검색("실리콘") → 수정(재고 480→500) → 존재하지 않는 ID(S-999) 삭제
+    시도 시 실패 메시지 출력까지 모두 기대한 대로 동작.
+  - 프로세스를 재시작한 뒤 다시 조회했을 때 재고가 500으로 반영된 S-001이 그대로 유지됨을 확인 —
+    JSON 파일 기반 영속성이 CRUD 전체 흐름에서 정상 동작함을 검증.
+  - 중복 ID(S-001) 재등록 시도 시 `create()`가 거부하고 파일에 변경이 없음을 확인.
+  - 숫자 입력란에 빈 문자열/파싱 불가 값이 들어온 경우 `readDouble`/`readInt`가 `nullopt`를 반환해
+    등록이 취소되고 데이터 파일이 오염되지 않음을 확인 (테스트 입력 실수로 우연히 재현되었으나, 오히려
+    FR-4 요구사항이 의도대로 방어됨을 보여준 유효한 사례).
+- `SampleUpdate`를 `std::optional` 필드로 설계한 덕분에 "재고만 변경, 나머지는 유지"가 별도 분기 없이
+  자연스럽게 동작함을 확인 — Order 쪽 Update 설계(Phase 4)에도 동일 패턴을 재사용하기로 함.
+
+**결론**: 시료 CRUD 전체 요구사항(FR-5~FR-9) 충족 확인. 동일 패턴으로 Phase 4(주문 CRUD)를 진행한다.
+
+---

@@ -1,8 +1,10 @@
 #include <iostream>
 #include <string>
 
+#include "console/SampleMenu.hpp"
 #include "model/Order.hpp"
 #include "model/Sample.hpp"
+#include "repository/SampleRepository.hpp"
 #include "storage/JsonFileStore.hpp"
 
 namespace {
@@ -11,10 +13,10 @@ constexpr const char* kOrderDataFile = "data/orders.json";
 }  // namespace
 
 int main() {
-    dp::JsonFileStore<dp::Sample> sampleStore(kSampleDataFile);
+    dp::SampleRepository sampleRepository(kSampleDataFile);
     dp::JsonFileStore<dp::Order> orderStore(kOrderDataFile);
 
-    const auto samples = sampleStore.load();
+    const auto samples = sampleRepository.findAll();
     const auto orders = orderStore.load();
 
     std::cout << "==============================================\n";
@@ -33,7 +35,7 @@ int main() {
         }
 
         if (input == "1") {
-            std::cout << "(시료 관리 메뉴는 Phase 3에서 구현 예정)\n\n";
+            dp::console::SampleMenu(sampleRepository).run();
         } else if (input == "2") {
             std::cout << "(주문 관리 메뉴는 Phase 4에서 구현 예정)\n\n";
         } else if (input == "0") {
