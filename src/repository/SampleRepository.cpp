@@ -26,11 +26,16 @@ RepositoryResult validate(const std::string& id, const std::string& name, double
     return RepositoryResult::ok("");
 }
 
+// id로 항목을 찾는 반복자 조회가 findById/update/remove 3곳에서 반복되어 추출함 (Rule of Three).
+std::vector<Sample>::iterator findIt(std::vector<Sample>& samples, const std::string& id) {
+    return std::find_if(samples.begin(), samples.end(), [&](const Sample& s) { return s.id == id; });
+}
+
 }  // namespace
 
 std::optional<Sample> SampleRepository::findById(const std::string& id) const {
-    const auto samples = store_.load();
-    const auto it = std::find_if(samples.begin(), samples.end(), [&](const Sample& s) { return s.id == id; });
+    auto samples = store_.load();
+    const auto it = findIt(samples, id);
     if (it == samples.end()) {
         return std::nullopt;
     }
@@ -68,7 +73,7 @@ RepositoryResult SampleRepository::create(const Sample& sample) {
 
 RepositoryResult SampleRepository::update(const std::string& id, const SampleUpdate& patch) {
     auto samples = store_.load();
-    auto it = std::find_if(samples.begin(), samples.end(), [&](const Sample& s) { return s.id == id; });
+    auto it = findIt(samples, id);
     if (it == samples.end()) {
         return RepositoryResult::fail("존재하지 않는 시료 ID입니다: " + id);
     }
@@ -92,7 +97,7 @@ RepositoryResult SampleRepository::update(const std::string& id, const SampleUpd
 
 RepositoryResult SampleRepository::remove(const std::string& id) {
     auto samples = store_.load();
-    auto it = std::find_if(samples.begin(), samples.end(), [&](const Sample& s) { return s.id == id; });
+    auto it = findIt(samples, id);
     if (it == samples.end()) {
         return RepositoryResult::fail("존재하지 않는 시료 ID입니다: " + id);
     }

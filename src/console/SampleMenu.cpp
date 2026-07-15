@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #include "console/ConsoleIO.hpp"
 
@@ -12,6 +13,14 @@ namespace {
 void printSampleRow(const Sample& s) {
     std::cout << std::left << std::setw(10) << s.id << std::setw(20) << s.name << "평균생산시간="
               << s.avgProductionTimeMin << "min  수율=" << s.yieldRate << "  재고=" << s.stock << "\n";
+}
+
+// std::to_string(double)은 "0.500000"처럼 후행 0이 많아 프롬프트에 그대로 쓰기엔 지저분하다.
+// printSampleRow와 동일한 기본 스트림 포맷(예: "0.5")으로 맞춰서 표시한다.
+std::string toDisplay(double value) {
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
 }
 
 }  // namespace
@@ -94,9 +103,9 @@ void SampleMenu::handleUpdate() {
 
     SampleUpdate patch;
     patch.name = readOptionalLine("이름 [" + existing->name + "] > ");
-    patch.avgProductionTimeMin = readOptionalDouble("평균 생산시간 [" +
-                                                     std::to_string(existing->avgProductionTimeMin) + "] > ");
-    patch.yieldRate = readOptionalDouble("수율 [" + std::to_string(existing->yieldRate) + "] > ");
+    patch.avgProductionTimeMin =
+        readOptionalDouble("평균 생산시간 [" + toDisplay(existing->avgProductionTimeMin) + "] > ");
+    patch.yieldRate = readOptionalDouble("수율 [" + toDisplay(existing->yieldRate) + "] > ");
     patch.stock = readOptionalInt("재고 [" + std::to_string(existing->stock) + "] > ");
 
     const auto result = repository_.update(id, patch);

@@ -19,12 +19,16 @@ RepositoryResult validateCommon(const std::string& orderId, const std::string& c
     return RepositoryResult::ok("");
 }
 
+// id로 항목을 찾는 반복자 조회가 findById/update/remove 3곳에서 반복되어 추출함 (Rule of Three).
+std::vector<Order>::iterator findIt(std::vector<Order>& orders, const std::string& orderId) {
+    return std::find_if(orders.begin(), orders.end(), [&](const Order& o) { return o.orderId == orderId; });
+}
+
 }  // namespace
 
 std::optional<Order> OrderRepository::findById(const std::string& orderId) const {
-    const auto orders = store_.load();
-    const auto it =
-        std::find_if(orders.begin(), orders.end(), [&](const Order& o) { return o.orderId == orderId; });
+    auto orders = store_.load();
+    const auto it = findIt(orders, orderId);
     if (it == orders.end()) {
         return std::nullopt;
     }
@@ -67,7 +71,7 @@ RepositoryResult OrderRepository::create(const Order& order) {
 
 RepositoryResult OrderRepository::update(const std::string& orderId, const OrderUpdate& patch) {
     auto orders = store_.load();
-    auto it = std::find_if(orders.begin(), orders.end(), [&](const Order& o) { return o.orderId == orderId; });
+    auto it = findIt(orders, orderId);
     if (it == orders.end()) {
         return RepositoryResult::fail("존재하지 않는 주문번호입니다: " + orderId);
     }
@@ -89,7 +93,7 @@ RepositoryResult OrderRepository::update(const std::string& orderId, const Order
 
 RepositoryResult OrderRepository::remove(const std::string& orderId) {
     auto orders = store_.load();
-    auto it = std::find_if(orders.begin(), orders.end(), [&](const Order& o) { return o.orderId == orderId; });
+    auto it = findIt(orders, orderId);
     if (it == orders.end()) {
         return RepositoryResult::fail("존재하지 않는 주문번호입니다: " + orderId);
     }
