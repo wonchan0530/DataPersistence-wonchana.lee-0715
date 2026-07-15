@@ -9,40 +9,83 @@ larger assignment: the "반도체 시료 생산주문관리 시스템" (semicond
 console system). Each PoC repo validates one technical concern in isolation before it gets reused in the final
 `SampleOrderSystem` project.
 
-This PoC's scope, per `docs/[CRA_AI] Day3_개인과제_반도체시료관리.pdf`:
+This PoC's scope, per `docs/[CRA_AI] Day3_개인과제_반도체시료관리.pdf`: a CRUD (Create, Read, Update, Delete)
+console application that manages data as JSON files. "데이터 영속성" means the application can be restarted and
+still see previously saved data, because state lives in JSON files on disk rather than only in memory.
 
-> 데이터를 JSON 파일로 관리하는 CRUD(Create, Read, Update, Delete) 콘솔 애플리케이션을 개발한다.
-> - PoC에서 사용된 코드 구조를 유지한 상태로, CRUD 구현
-> - Create: 새로운 데이터를 입력 받아 JSON 파일에 저장
-> - Read: 전체 목록 보기 및 특정 ID/키 값으로 검색 기능
-> - Update: 기존 데이터를 선택하여 특정 필드 수정
-> - Delete: 특정 데이터를 안전하게 삭제
+The data domain is the "시료(Sample)" and "주문(Order)" entities from the semiconductor sample order system
+(`PRD.md` has the full data model and functional requirements). `PLAN.md` has the Phase 0–8 roadmap that was
+followed to build this; `DESIGN.md` has the per-Phase design/implementation/feedback log — read it before making
+further changes, since it records *why* things are structured this way (e.g. why some duplication was left alone
+under Rule of Three, why a lightweight test harness was chosen over GoogleTest).
 
-"데이터 영속성" here specifically means: the application can be restarted and still see previously saved data,
-because state lives in a JSON file on disk rather than only in memory.
+## Build / run / test
 
-There is currently no source code in this repository — only the `docs/` folder with the assignment slide decks.
-Repository structure, language, and tooling have not been decided yet.
+Requires a C++17 compiler. Developed against MSVC (Visual Studio 2022 Build Tools) + CMake + Ninja on Windows.
 
-## Repository-wide context (from `docs/`)
+```powershell
+# From a "Developer PowerShell/Command Prompt for VS 2022" (so cl.exe/cmake/ninja are on PATH).
+# From a plain powershell.exe/cmd.exe instead, set up the env first — note `call` is a cmd.exe-ism,
+# so from plain PowerShell wrap it: cmd /c '"...\vcvars64.bat" && cmake ... && cmake --build build'
 
-- This repo is one of five sibling PoC/project repos in the same assignment series (`ConsoleMVC`, `DataPersistence`,
-  `DataMonitor`, `DummyDataGenerator`, `SampleOrderSystem`). Code and conventions established here are meant to be
-  reused later in `SampleOrderSystem` (an MVC console app), so prefer a structure that is easy to lift into an
-  MVC Model layer later (e.g. a small repository/store class around the JSON file, not logic scattered through
-  ad-hoc scripts).
-- Per `docs/[CRA_AI] Day2_1_Agentic Engineering.pdf`, PoC-stage work is explicitly **not** expected to follow the
-  full Agentic Engineering process (branch → requirements discussion → design doc → review → implement → review →
-  merge). PoCs are meant to be built quickly ("Vibe Coding") in an isolated environment purely to validate the
-  approach — the rigor (design docs, review, tests-as-gates) is expected later in the `SampleOrderSystem` project,
-  not necessarily in this repo.
-- Once the JSON read/write/CRUD pattern here is understood and settled, it should be treated as a trusted, reusable
-  building block — i.e. "PoC 코드"— that later work can reference directly rather than re-deriving.
+cmake -S . -B build -G Ninja
+cmake --build build
 
-## Working in this repo
+# Run the console app (creates data/samples.json, data/orders.json on first write)
+.\build\DataPersistenceApp.exe
 
-Since no implementation exists yet, there are no build/lint/test commands to record. When implementation starts:
-- Confirm the target language/runtime with the user before scaffolding anything (not yet decided).
-- Keep the JSON persistence logic isolated behind a small, dedicated module/class (load, save, and CRUD operations)
-  so it can be dropped into the `SampleOrderSystem` Model layer later with minimal changes.
-- Update this file with actual run/test/lint commands and architecture notes once code exists.
+# Run the test suite
+ctest --test-dir build --output-on-failure
+# or directly:
+.\build\DataPersistenceTests.exe
+```
+
+**Important MSVC gotcha** (found in Phase 0 PoC): source files contain Korean comments/strings in UTF-8. Without
+the `/utf-8` compiler flag, MSVC misinterprets them using the default codepage and fails with confusing syntax
+errors. `CMakeLists.txt` already adds `/utf-8 /W4` for MSVC — don't remove it, and add it to any new MSVC-only
+build target.
+
+There is no lint step; `/W4` warnings-as-you-go is the only static check. A clean build currently has zero
+warnings — keep it that way.
+
+## Architecture
+
+Layered structure, designed so it can be lifted into `SampleOrderSystem`'s MVC Model layer later with minimal
+changes:
+
+```
+include/model/        Sample.hpp, Order.hpp       Pure data structs + to_json/from_json (nlohmann ADL hooks)
+include/storage/       JsonFileStore.hpp            Generic vector<T> <-> JSON file load/save, no domain knowledge
+include/repository/    SampleRepository, OrderRepository, RepositoryResult
+                                                     Domain CRUD rules on top of JsonFileStore (uniqueness,
+                                                     referential integrity, partial-field updates)
+include/console/       ConsoleIO.hpp, SampleMenu, OrderMenu
+                                                     Menu loops; only print what Repository returns
+src/main.cpp           Composition root: wires repositories + menus together
+third_party/nlohmann/  json.hpp (vendored, v3.11.3, header-only, MIT)
+tests/test_main.cpp    Lightweight self-contained CHECK-based test harness (no GoogleTest/Catch2 — see
+                       DESIGN.md Phase 6 for why)
+```
+
+Key design decisions (see `DESIGN.md` for the full reasoning per Phase):
+
+- **Repository ↔ Storage split**: `JsonFileStore<T>` knows nothing about Sample/Order-specific rules (duplicate
+  IDs, referential integrity); `SampleRepository`/`OrderRepository` know nothing about file I/O. Every Repository
+  call re-reads and re-writes the whole file — intentionally simple over performant, since this is a single-user
+  console PoC.
+- **`OrderRepository` depends on `SampleRepository`** (one-way) to validate that an order's `sampleId` references
+  an existing sample. Don't add a reverse dependency.
+- **`SampleUpdate`/`OrderUpdate` patch structs** use `std::optional<T>` fields so "leave unspecified fields
+  unchanged" doesn't need special-casing in the Repository.
+- **`RepositoryResult{success, message}`** is the return type for all Create/Update/Delete calls; the Console
+  layer just prints `result.message` — it doesn't know *why* something failed.
+- Two occurrences of similar code (e.g. `SampleMenu`/`OrderMenu`'s run-loop shape) were deliberately left
+  un-abstracted per the Rule of Three; three-or-more repeated blocks (e.g. the `find_if`-by-id pattern inside each
+  Repository) were extracted. If you're about to add a third near-duplicate of something, that's the signal to
+  extract, not before.
+
+## Data files
+
+`data/samples.json` and `data/orders.json` are runtime output, not source — they're gitignored and auto-created
+(including missing parent directories) on first save. Tests use a separate `test_data/` directory so running
+`ctest` never touches your local `data/`.

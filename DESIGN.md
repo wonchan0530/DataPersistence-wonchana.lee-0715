@@ -374,3 +374,38 @@ Phase 3~6에서 작성된 코드를 사람이 직접 다시 읽으며 다음 관
 진행한다.
 
 ---
+
+## Phase 8 — 문서화 마무리 및 제출 준비
+
+### 설계
+
+- **`CLAUDE.md` 갱신**: 초기 작성 시점("아직 코드 없음")에서 벗어나, 실제 완성된 구조를 반영
+  - 빌드/실행/테스트 명령어 (CMake+Ninja+MSVC, `/utf-8` 필요성 포함)
+  - 최종 아키텍처: `model/storage/repository/console` 계층 구조와 각 계층의 책임
+  - `third_party/nlohmann/json.hpp` 벤더링 사실과 이유
+- **`README.md` 신규 작성**: 처음 저장소를 받는 사람 기준으로
+  - 프로젝트 한 줄 소개, 요구사항(Visual Studio 2022 Build Tools 이상), 빌드 방법, 실행 방법, 테스트
+    방법, 폴더 구조 요약
+- 이 두 문서만으로 "빌드 → 실행 → CRUD 시나리오 재현 → 재시작 후 영속성 확인 → 테스트 실행"까지 재현
+  가능해야 한다 (Phase 8 완료 기준).
+
+### 완료 기준
+
+- `README.md`에 적힌 명령어 그대로 따라 했을 때 빌드/실행/테스트가 성공
+- `CLAUDE.md`가 실제 코드 구조와 불일치하는 내용을 남기지 않음
+
+### 피드백
+
+- `README.md` 초안에 `call "...\vcvars64.bat"`을 PowerShell 명령으로 적었으나, `build/`·`data/`·
+  `test_data/`를 모두 지운 뒤 그대로 실행해보니 **`call`은 cmd.exe 전용 명령이라 일반 PowerShell에서
+  `command not found`로 실패함**을 실제로 재현해 발견함. `CLAUDE.md`에도 동일한 표기가 있어 함께 수정.
+  - 수정: "Developer PowerShell for VS 2022"를 여는 방법을 기본 안내로 올리고, 일반 PowerShell에서는
+    `cmd /c '"...\vcvars64.bat" && cmake ...'` 형태로 감싸야 한다고 명시.
+- 수정한 안내 그대로 클린 상태(`build/` 삭제 후)에서 `cmake -S . -B build -G Ninja && cmake --build build`
+  → 실행 파일 동작 확인 → `ctest --test-dir build --output-on-failure` 전부 재실행하여 문서와 실제 동작이
+  일치함을 확인.
+
+**결론**: 문서에 실제로 있었던 오류(셸별 명령어 차이)를 재현 검증 과정에서 발견해 수정함으로써, README/
+CLAUDE.md가 실행 가능한 정확한 안내가 되었음을 확인. 이것으로 Phase 0~8 전체 사이클을 마친다.
+
+---
