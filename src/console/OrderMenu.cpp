@@ -23,6 +23,11 @@ void OrderMenu::run() {
         std::cout << "[1] 주문 등록  [2] 주문 조회  [3] 주문 검색  [4] 주문 수정  [5] 주문 삭제  [0] 뒤로\n";
         const std::string choice = readLine("선택 > ");
 
+        if (!std::cin) {
+            // 입력 스트림이 종료됨(EOF) - "잘못된 입력"으로 무한 반복하지 않고 상위 메뉴로 복귀한다.
+            break;
+        }
+
         if (choice == "1") {
             handleCreate();
         } else if (choice == "2") {

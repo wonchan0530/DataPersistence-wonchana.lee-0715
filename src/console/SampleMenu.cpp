@@ -32,6 +32,11 @@ void SampleMenu::run() {
         std::cout << "[1] 시료 등록  [2] 시료 조회  [3] 시료 검색  [4] 시료 수정  [5] 시료 삭제  [0] 뒤로\n";
         const std::string choice = readLine("선택 > ");
 
+        if (!std::cin) {
+            // 입력 스트림이 종료됨(EOF) - "잘못된 입력"으로 무한 반복하지 않고 상위 메뉴로 복귀한다.
+            break;
+        }
+
         if (choice == "1") {
             handleCreate();
         } else if (choice == "2") {
